@@ -1,0 +1,6 @@
+.streamlit/secrets.toml
+auth_config.yaml
+deal_history.json
+__pycache__/
+*.pyc
+.DS_Store
