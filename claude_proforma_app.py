@@ -28,13 +28,22 @@ except Exception:
     HUD_TOKEN = os.environ.get("HUD_TOKEN", "")
 MODEL = "claude-opus-4-6"
 
-HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deal_history.json")
+_HISTORY_DIR = os.path.dirname(os.path.abspath(__file__))
+# Legacy fallback — kept so existing code referencing HISTORY_FILE still works
+HISTORY_FILE = os.path.join(_HISTORY_DIR, "deal_history.json")
+
+
+def get_history_file():
+    username = st.session_state.get("username", "default")
+    safe = "".join(c for c in username if c.isalnum() or c in "-_")
+    return os.path.join(_HISTORY_DIR, f"deal_history_{safe}.json")
 
 
 def load_history():
-    if os.path.exists(HISTORY_FILE):
+    path = get_history_file()
+    if os.path.exists(path):
         try:
-            with open(HISTORY_FILE, "r") as f:
+            with open(path, "r") as f:
                 return json.load(f)
         except Exception:
             pass
@@ -63,7 +72,7 @@ def save_to_history(data):
         history.insert(0, entry)
     history = history[:100]  # keep last 100
     try:
-        with open(HISTORY_FILE, "w") as f:
+        with open(get_history_file(), "w") as f:
             json.dump(history, f)
     except Exception:
         pass
@@ -194,37 +203,42 @@ st.markdown("""
 
 # ── Auth gate ─────────────────────────────────────────────────────────────────
 
-def _get_app_password():
+def _get_users():
+    """Return {username: password} from secrets or env fallback."""
     try:
-        return st.secrets.get("APP_PASSWORD") or ""
+        users = st.secrets.get("users")
+        if users:
+            return dict(users)
     except Exception:
-        return os.environ.get("APP_PASSWORD", "")
+        pass
+    # Fallback: single-user mode via APP_PASSWORD
+    pw = os.environ.get("APP_PASSWORD", "")
+    try:
+        pw = pw or st.secrets.get("APP_PASSWORD") or ""
+    except Exception:
+        pass
+    return {"admin": pw} if pw else {}
 
 def _check_login():
     if st.session_state.get("authenticated"):
         return True
-    app_pw = _get_app_password()
-    if not app_pw:
-        # No password configured — allow access
+    users = _get_users()
+    if not users:
+        st.session_state["username"] = "default"
         return True
-
-    st.markdown("""
-    <style>
-    .login-wrap { max-width: 380px; margin: 80px auto 0; }
-    </style>
-    <div class="login-wrap"></div>
-    """, unsafe_allow_html=True)
 
     col_l, col_c, col_r = st.columns([1, 2, 1])
     with col_c:
         st.markdown("### Sign in to DealQuill")
+        username = st.text_input("Username", key="_login_user").strip().lower()
         pw_input = st.text_input("Password", type="password", key="_login_pw")
         if st.button("Sign In", type="primary", use_container_width=True):
-            if pw_input == app_pw:
+            if username in users and pw_input == users[username]:
                 st.session_state["authenticated"] = True
+                st.session_state["username"] = username
                 st.rerun()
             else:
-                st.error("Incorrect password.")
+                st.error("Incorrect username or password.")
     st.stop()
 
 _check_login()
@@ -1515,9 +1529,12 @@ def populate_sidebar_from_data(data):
 # ── Sidebar — Manual Assumptions ─────────────────────────────────────────────
 
 with st.sidebar:
-    if st.session_state.get("authenticated") and _get_app_password():
+    if st.session_state.get("authenticated") and _get_users():
+        uname = st.session_state.get("username", "")
+        st.caption(f"Signed in as **{uname}**")
         if st.button("Sign Out", key="_logout_btn"):
             st.session_state["authenticated"] = False
+            st.session_state.pop("username", None)
             st.rerun()
         st.markdown("<hr style='margin:8px 0'>", unsafe_allow_html=True)
 

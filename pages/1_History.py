@@ -13,7 +13,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
 from claude_proforma_app import (
-    HISTORY_FILE,
+    get_history_file,
     load_history,
     fmt_d,
     fmt_p,
@@ -90,7 +90,7 @@ def _get_app_password():
         import os
         return os.environ.get("APP_PASSWORD", "")
 
-if not st.session_state.get("authenticated") and _get_app_password():
+if not st.session_state.get("authenticated"):
     st.warning("Please sign in from the main page.")
     st.stop()
 
@@ -194,7 +194,7 @@ for entry in history:
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 if st.button("🗑 Clear all history", type="secondary"):
     try:
-        os.remove(HISTORY_FILE)
+        os.remove(get_history_file())
     except Exception:
         pass
     st.rerun()
