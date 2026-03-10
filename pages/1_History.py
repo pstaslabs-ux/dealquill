@@ -53,8 +53,10 @@ section[data-testid="stSidebar"] * {
     color: #000000 !important;
     background-color: #f8f8f8 !important;
 }
-[data-testid="stToolbar"] {
-    visibility: hidden !important;
+header a[href*="github"],
+[data-testid="stHeader"] a[href*="github"],
+[data-testid="stToolbar"] a[href*="github"] {
+    display: none !important;
 }
 .stButton button {
     color: #2F5496 !important;

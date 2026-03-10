@@ -154,9 +154,11 @@ section[data-testid="stSidebar"] input {
     background-color: #ffffff !important;
 }
 
-/* Hide Streamlit toolbar (GitHub source button etc) */
-[data-testid="stToolbar"] {
-    visibility: hidden !important;
+/* Hide GitHub source button in header */
+header a[href*="github"],
+[data-testid="stHeader"] a[href*="github"],
+[data-testid="stToolbar"] a[href*="github"] {
+    display: none !important;
 }
 
 /* Buttons */
