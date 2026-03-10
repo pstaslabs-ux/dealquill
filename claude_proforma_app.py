@@ -188,24 +188,21 @@ from yaml.loader import SafeLoader
 def _load_auth_config():
     """Load credentials from st.secrets (cloud) or auth_config.yaml (local)."""
     try:
-        # Streamlit Cloud: credentials stored in st.secrets
-        users = st.secrets.get("users", {})
-        if users:
-            credentials = {"usernames": {}}
-            for uname, udata in users.items():
-                credentials["usernames"][uname] = {
-                    "name":                  udata.get("name", uname),
-                    "email":                 udata.get("email", ""),
-                    "password":              udata.get("password", ""),
-                    "failed_login_attempts": 0,
-                    "logged_in":             False,
-                }
-            auth_cfg = st.secrets.get("auth", {})
+        # Streamlit Cloud: flat secrets keys
+        admin_pw = st.secrets.get("admin_password")
+        if admin_pw:
+            credentials = {"usernames": {"admin": {
+                "name":                  st.secrets.get("admin_name", "Admin"),
+                "email":                 st.secrets.get("admin_email", ""),
+                "password":              admin_pw,
+                "failed_login_attempts": 0,
+                "logged_in":             False,
+            }}}
             return (
                 credentials,
-                auth_cfg.get("cookie_name", "dealquill_auth"),
-                auth_cfg.get("cookie_key", "dealquill_secret_key"),
-                int(auth_cfg.get("cookie_expiry_days", 30)),
+                st.secrets.get("auth_cookie_name", "dealquill_auth"),
+                st.secrets.get("auth_cookie_key", "dealquill_secret_key"),
+                int(st.secrets.get("auth_cookie_expiry_days", 30)),
             )
     except Exception:
         pass
