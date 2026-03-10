@@ -20,9 +20,13 @@ import streamlit as st
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-API_KEY = st.secrets.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+try:
+    API_KEY = st.secrets.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    HUD_TOKEN = st.secrets.get("HUD_TOKEN") or os.environ.get("HUD_TOKEN", "")
+except Exception:
+    API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+    HUD_TOKEN = os.environ.get("HUD_TOKEN", "")
 MODEL = "claude-opus-4-6"
-HUD_TOKEN = st.secrets.get("HUD_TOKEN") or os.environ.get("HUD_TOKEN", "")
 
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deal_history.json")
 
@@ -180,57 +184,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Auth ───────────────────────────────────────────────────────────────────────
-import streamlit_authenticator as stauth
-import yaml
-from yaml.loader import SafeLoader
-
-def _load_auth_config():
-    """Load credentials from st.secrets (cloud) or auth_config.yaml (local)."""
-    try:
-        # Streamlit Cloud: flat secrets keys
-        admin_pw = st.secrets.get("admin_password")
-        if admin_pw:
-            credentials = {"usernames": {"admin": {
-                "name":                  st.secrets.get("admin_name", "Admin"),
-                "email":                 st.secrets.get("admin_email", ""),
-                "password":              admin_pw,
-                "failed_login_attempts": 0,
-                "logged_in":             False,
-            }}}
-            return (
-                credentials,
-                st.secrets.get("auth_cookie_name", "dealquill_auth"),
-                st.secrets.get("auth_cookie_key", "dealquill_secret_key"),
-                int(st.secrets.get("auth_cookie_expiry_days", 30)),
-            )
-    except Exception:
-        pass
-    # Local fallback: auth_config.yaml
-    _AUTH_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auth_config.yaml")
-    with open(_AUTH_FILE) as _f:
-        cfg = yaml.load(_f, Loader=SafeLoader)
-    return (
-        cfg["credentials"],
-        cfg["cookie"]["name"],
-        cfg["cookie"]["key"],
-        cfg["cookie"]["expiry_days"],
-    )
-
-_creds, _cookie_name, _cookie_key, _cookie_exp = _load_auth_config()
-_authenticator = stauth.Authenticate(_creds, _cookie_name, _cookie_key, _cookie_exp)
-
-_authenticator.login(location="main")
-
-if not st.session_state.get("authentication_status"):
-    if st.session_state.get("authentication_status") is False:
-        st.error("Incorrect username or password.")
-    st.stop()
-
-# Logout button in sidebar
-with st.sidebar:
-    st.markdown(f"**{st.session_state.get('name', '')}**")
-    _authenticator.logout("Log out", location="sidebar")
 
 # ── System Prompt ─────────────────────────────────────────────────────────────
 

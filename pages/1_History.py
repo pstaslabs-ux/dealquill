@@ -77,25 +77,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Auth gate (must be logged in) ─────────────────────────────────────────────
-import streamlit_authenticator as stauth
-import yaml
-from yaml.loader import SafeLoader
-
-_AUTH_FILE = os.path.join(_ROOT, "auth_config.yaml")
-with open(_AUTH_FILE) as _f:
-    _auth_config = yaml.load(_f, Loader=SafeLoader)
-
-_authenticator = stauth.Authenticate(
-    _auth_config["credentials"],
-    _auth_config["cookie"]["name"],
-    _auth_config["cookie"]["key"],
-    _auth_config["cookie"]["expiry_days"],
-)
-
-if not st.session_state.get("authentication_status"):
-    st.warning("Please log in from the main page.")
-    st.stop()
 
 # ── Load history ──────────────────────────────────────────────────────────────
 history = load_history()
