@@ -154,6 +154,11 @@ section[data-testid="stSidebar"] input {
     background-color: #ffffff !important;
 }
 
+/* Hide Streamlit toolbar (GitHub source button etc) */
+[data-testid="stToolbar"] {
+    visibility: hidden !important;
+}
+
 /* Buttons */
 .stButton button {
     color: #2F5496 !important;
