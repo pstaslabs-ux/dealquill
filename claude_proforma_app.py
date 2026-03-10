@@ -1695,7 +1695,9 @@ if zillow_btn and zillow_input:
     with st.spinner("Fetching Zillow listing..."):
         zillow_text, err = fetch_zillow_text(zillow_input)
     if err == "BLOCKED":
-        st.warning("Zillow blocked the request — paste the listing text in the box below instead.")
+        st.warning("Couldn't pull listing data from Zillow — address saved to sidebar. Enter a purchase price to get rent and expense estimates, or paste the listing text below.")
+        st.session_state["sb_address"] = zillow_input
+        st.rerun()
     elif err:
         st.error(err)
     else:
