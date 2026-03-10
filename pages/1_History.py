@@ -77,6 +77,17 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ── Auth check ────────────────────────────────────────────────────────────────
+def _get_app_password():
+    try:
+        return st.secrets.get("APP_PASSWORD") or ""
+    except Exception:
+        import os
+        return os.environ.get("APP_PASSWORD", "")
+
+if not st.session_state.get("authenticated") and _get_app_password():
+    st.warning("Please sign in from the main page.")
+    st.stop()
 
 # ── Load history ──────────────────────────────────────────────────────────────
 history = load_history()

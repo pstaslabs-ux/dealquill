@@ -185,6 +185,44 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# ── Auth gate ─────────────────────────────────────────────────────────────────
+
+def _get_app_password():
+    try:
+        return st.secrets.get("APP_PASSWORD") or ""
+    except Exception:
+        return os.environ.get("APP_PASSWORD", "")
+
+def _check_login():
+    if st.session_state.get("authenticated"):
+        return True
+    app_pw = _get_app_password()
+    if not app_pw:
+        # No password configured — allow access
+        return True
+
+    st.markdown("""
+    <style>
+    .login-wrap { max-width: 380px; margin: 80px auto 0; }
+    </style>
+    <div class="login-wrap"></div>
+    """, unsafe_allow_html=True)
+
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        st.markdown("### Sign in to DealQuill")
+        pw_input = st.text_input("Password", type="password", key="_login_pw")
+        if st.button("Sign In", type="primary", use_container_width=True):
+            if pw_input == app_pw:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+    st.stop()
+
+_check_login()
+
+
 # ── System Prompt ─────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are a commercial real estate investment analyst.
@@ -1470,6 +1508,12 @@ def populate_sidebar_from_data(data):
 # ── Sidebar — Manual Assumptions ─────────────────────────────────────────────
 
 with st.sidebar:
+    if st.session_state.get("authenticated") and _get_app_password():
+        if st.button("Sign Out", key="_logout_btn"):
+            st.session_state["authenticated"] = False
+            st.rerun()
+        st.markdown("<hr style='margin:8px 0'>", unsafe_allow_html=True)
+
     st.header("Manual Assumptions")
     st.caption("Fill any fields to override or skip document upload entirely.")
 
