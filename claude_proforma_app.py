@@ -1562,10 +1562,14 @@ with st.sidebar:
             if _hud_token:
                 _hud_rent, _hud_label, _hud_err = fetch_hud_fmr(_addr_r, s_bedrooms, _hud_token)
                 if _hud_rent:
+                    _hud_total = _hud_rent * int(s_units)
                     if st.button(f"Estimate rent — {_hud_label}", use_container_width=True):
-                        st.session_state["sb_gmi"] = _hud_rent
+                        st.session_state["sb_gmi"] = _hud_total
                         st.rerun()
-                    st.caption(f"HUD FMR {s_bedrooms}: {fmt_d(_hud_rent)}/mo")
+                    if s_units > 1:
+                        st.caption(f"HUD FMR {s_bedrooms}: {fmt_d(_hud_rent)}/unit × {int(s_units)} units = {fmt_d(_hud_total)}/mo")
+                    else:
+                        st.caption(f"HUD FMR {s_bedrooms}: {fmt_d(_hud_rent)}/mo")
                 else:
                     st.warning(f"HUD FMR failed: {_hud_err}", icon="⚠️")
                     if _rlabel and st.button(f"Estimate rent — {_rlabel} (local fallback)", use_container_width=True):
