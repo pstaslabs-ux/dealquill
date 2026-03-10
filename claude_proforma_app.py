@@ -8,6 +8,16 @@ showing Returns, 50% Rule, and 30-year projections.
 import io
 import json
 import math
+
+from dq_utils import (
+    get_history_file,
+    load_history as _load_history_util,
+    fmt_d,
+    fmt_p,
+    calc_payment,
+    populate_sidebar_from_data,
+    infer_units_from_type,
+)
 import os
 import re
 import uuid
@@ -28,26 +38,8 @@ except Exception:
     HUD_TOKEN = os.environ.get("HUD_TOKEN", "")
 MODEL = "claude-opus-4-6"
 
-_HISTORY_DIR = os.path.dirname(os.path.abspath(__file__))
-# Legacy fallback — kept so existing code referencing HISTORY_FILE still works
-HISTORY_FILE = os.path.join(_HISTORY_DIR, "deal_history.json")
-
-
-def get_history_file():
-    username = st.session_state.get("username", "default")
-    safe = "".join(c for c in username if c.isalnum() or c in "-_")
-    return os.path.join(_HISTORY_DIR, f"deal_history_{safe}.json")
-
-
 def load_history():
-    path = get_history_file()
-    if os.path.exists(path):
-        try:
-            with open(path, "r") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return []
+    return _load_history_util()
 
 
 def save_to_history(data):
@@ -488,14 +480,7 @@ def fetch_zillow_text(url_or_address):
 
 
 # ── Finance math ──────────────────────────────────────────────────────────────
-
-def calc_payment(loan, annual_rate, years):
-    if annual_rate == 0 or years == 0:
-        return loan / max(years * 12, 1)
-    r = annual_rate / 12
-    n = years * 12
-    return loan * r * (1 + r) ** n / ((1 + r) ** n - 1)
-
+# calc_payment imported from dq_utils
 
 def calc_balance(loan, annual_rate, years, elapsed_years):
     if annual_rate == 0:
@@ -529,23 +514,7 @@ def calc_irr(cash_flows):
         return None
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
-
-def fmt_d(v, short=False):
-    if v is None:
-        return "N/A"
-    if short:
-        if abs(v) >= 1_000_000:
-            return "$" + str(round(v / 1_000_000, 1)) + "M"
-        if abs(v) >= 1_000:
-            return "$" + str(round(v / 1_000)) + "K"
-    return "${:,.0f}".format(v)
-
-
-def fmt_p(v):
-    if v is None:
-        return "N/A"
-    return "{:.2f}%".format(v * 100)
-
+# fmt_d, fmt_p imported from dq_utils
 
 def show_dashboard(data):
     prop    = data.get("property", {})
@@ -1474,57 +1443,7 @@ def fetch_hud_fmr(address, bedrooms, token):
     return int(rent), f"HUD FMR — {best_metro['metro_name']}", None
 
 
-def infer_units_from_type(property_type):
-    """Return unit count inferred from property type string, or None if unknown."""
-    if not property_type:
-        return None
-    t = property_type.lower()
-    if any(x in t for x in ("single family", "sfr", "single-family", "house", "townhouse", "townhome", "condo", "condominium", "manufactured", "mobile")):
-        return 1
-    if any(x in t for x in ("duplex", "2-unit", "2 unit", "two unit", "two-unit")):
-        return 2
-    if any(x in t for x in ("triplex", "3-unit", "3 unit", "three unit", "three-unit")):
-        return 3
-    if any(x in t for x in ("quadplex", "fourplex", "4-unit", "4 unit", "four unit", "four-unit", "quad")):
-        return 4
-    # e.g. "5 unit", "10-unit", "12 units"
-    m = re.search(r'(\d+)\s*-?\s*unit', t)
-    if m:
-        return int(m.group(1))
-    return None
-
-
-def populate_sidebar_from_data(data):
-    """Stage extracted values — applied at top of next rerun before widgets render."""
-    prop = data.get("property", {})
-    fin  = data.get("financing", {})
-
-    def _g(d, key, default):
-        v = d.get(key)
-        return v if v is not None else default
-
-    st.session_state["_sb_pending"] = {
-        "sb_address": prop.get("address") or "",
-        "sb_type":    prop.get("property_type") or "",
-        "sb_sqft":    int(_g(prop, "square_feet", 0) or 0),
-        "sb_price":   int(_g(prop, "purchase_price", 0) or 0),
-        "sb_down":    round(float(_g(prop, "down_payment_pct", 0.25)) * 100, 2),
-        "sb_closing": int(_g(prop, "closing_costs", None) or 0),
-        "sb_gmi":     int(_g(prop, "gross_monthly_income", 0) or 0),
-        "sb_vacancy": round(float(_g(prop, "vacancy_rate", 0.0)) * 100, 2),
-        "sb_rate":    round(float(_g(fin, "interest_rate", 0.07)) * 100, 4),
-        "sb_amort":   int(_g(fin, "amortization_years", 30)),
-        "sb_appr":    round(float(_g(prop, "appreciation_rate", 0.03)) * 100, 2),
-        "sb_rent_g":  round(float(_g(prop, "rent_growth_rate", 0.02)) * 100, 2),
-        "sb_taxes":   int(_g(prop, "monthly_property_taxes", 0) or 0),
-        "sb_insure":  int(_g(prop, "monthly_insurance", 0) or 0),
-        "sb_util":    int(_g(prop, "monthly_utilities", 0) or 0),
-        "sb_capex":   round(float(_g(prop, "capex_pct", 0.0) or 0) * 100, 2),
-        "sb_maint":   round(float(_g(prop, "maintenance_pct", 0.0) or 0) * 100, 2),
-        "sb_mgmt":    round(float(_g(prop, "management_pct", 0.0) or 0) * 100, 2),
-        "sb_units":   int(_g(prop, "num_units", None) or infer_units_from_type(prop.get("property_type")) or 1),
-    }
-
+# infer_units_from_type and populate_sidebar_from_data imported from dq_utils
 
 # ── Sidebar — Manual Assumptions ─────────────────────────────────────────────
 

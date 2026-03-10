@@ -12,7 +12,7 @@ import streamlit as st
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
-from claude_proforma_app import (
+from dq_utils import (
     get_history_file,
     load_history,
     fmt_d,
