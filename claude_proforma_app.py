@@ -218,7 +218,7 @@ def _check_login():
         st.markdown("### Sign in to DealQuill")
         username = st.text_input("Username", key="_login_user").strip().lower()
         pw_input = st.text_input("Password", type="password", key="_login_pw")
-        if st.button("Sign In", type="primary", use_container_width=True):
+        if st.button("Sign In", type="primary", width="stretch"):
             if username in users and pw_input == users[username]:
                 st.session_state["authenticated"] = True
                 st.session_state["username"] = username
@@ -646,7 +646,7 @@ def show_dashboard(data):
             yaxis=dict(tickprefix="$", tickformat=",.0f", showgrid=True, gridcolor="#F0F0F0", color="#888"),
             plot_bgcolor="white", paper_bgcolor="white", showlegend=False,
         )
-        st.plotly_chart(cf_fig, use_container_width=True)
+        st.plotly_chart(cf_fig, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_metrics:
@@ -795,7 +795,7 @@ def show_dashboard(data):
                 legend=dict(orientation="h", x=0, y=-0.1, font=dict(size=11)),
                 showlegend=True,
             )
-            st.plotly_chart(donut, use_container_width=True)
+            st.plotly_chart(donut, width="stretch")
         for l, v, c in zip(labels, values, colors):
             if v <= 0:
                 continue
@@ -855,7 +855,7 @@ def show_dashboard(data):
         xaxis=dict(title="Year", gridcolor="#F0F0F0"),
         plot_bgcolor="white", paper_bgcolor="white", hovermode="x unified",
     )
-    st.plotly_chart(proj_fig, use_container_width=True)
+    st.plotly_chart(proj_fig, width="stretch")
 
     show_yrs = [1, 2, 3, 4, 5, 10, 15, 20, 30]
     idx = {y: i for i, y in enumerate(years_range)}
@@ -1508,7 +1508,7 @@ with st.sidebar:
                 _hud_rent, _hud_label, _hud_err = fetch_hud_fmr(_addr_r, s_bedrooms, _hud_token)
                 if _hud_rent:
                     _hud_total = _hud_rent * int(s_units)
-                    if st.button(f"Estimate rent — {_hud_label}", use_container_width=True):
+                    if st.button(f"Estimate rent — {_hud_label}", width="stretch"):
                         st.session_state["sb_gmi"] = _hud_total
                         st.rerun()
                     if s_units > 1:
@@ -1517,12 +1517,12 @@ with st.sidebar:
                         st.caption(f"HUD FMR {s_bedrooms}: {fmt_d(_hud_rent)}/mo")
                 else:
                     st.warning(f"HUD FMR failed: {_hud_err}", icon="⚠️")
-                    if _rlabel and st.button(f"Estimate rent — {_rlabel} (local fallback)", use_container_width=True):
+                    if _rlabel and st.button(f"Estimate rent — {_rlabel} (local fallback)", width="stretch"):
                         if _est_rent_loc:
                             st.session_state["sb_gmi"] = _est_rent_loc
                         st.rerun()
             elif _rlabel:
-                if st.button(f"Estimate rent — {_rlabel}", use_container_width=True):
+                if st.button(f"Estimate rent — {_rlabel}", width="stretch"):
                     if _est_rent_loc:
                         st.session_state["sb_gmi"] = _est_rent_loc
                     st.rerun()
@@ -1538,7 +1538,7 @@ with st.sidebar:
         _price = st.session_state.get("sb_price", 0)
         if _addr and _price:
             _et, _ei, _eu, _, _elabel = estimate_location_costs(_addr, _price, st.session_state.get("sb_sqft", 0))
-            if _elabel and st.button(f"Estimate taxes, insurance & utilities — {_elabel}", use_container_width=True):
+            if _elabel and st.button(f"Estimate taxes, insurance & utilities — {_elabel}", width="stretch"):
                 if _et: st.session_state["sb_taxes"]  = _et
                 if _ei: st.session_state["sb_insure"] = _ei
                 if _eu: st.session_state["sb_util"]   = _eu
