@@ -21,8 +21,6 @@ from dq_utils import (
     populate_sidebar_from_data,
 )
 
-# ── Page config ───────────────────────────────────────────────────────────────
-st.set_page_config(page_title="DealQuill — History", layout="wide", page_icon="🏢")
 
 st.markdown("""
 <style>
