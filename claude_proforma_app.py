@@ -155,9 +155,17 @@ section[data-testid="stSidebar"] input {
     background-color: #ffffff !important;
 }
 
-/* Hide toolbar buttons (share, star, GitHub) */
-[data-testid="stToolbar"] {
+/* Hide share, star, GitHub toolbar buttons — keep sidebar toggle visible */
+[data-testid="stToolbarActionButton"],
+[data-testid="stToolbar"] a,
+[data-testid="stToolbar"] button {
     display: none !important;
+}
+/* Always show sidebar and its toggle */
+[data-testid="stSidebar"],
+[data-testid="collapsedControl"] {
+    display: block !important;
+    visibility: visible !important;
 }
 
 /* Buttons */
