@@ -188,7 +188,7 @@ for entry in history:
         if st.button("View", key=f"load_{entry['id']}"):
             st.session_state["dashboard_data"] = data
             populate_sidebar_from_data(data)
-            st.switch_page("claude_proforma_app.py")
+            st.switch_page("Analyzer.py")
 
 # ── Delete all ────────────────────────────────────────────────────────────────
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
