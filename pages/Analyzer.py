@@ -152,10 +152,11 @@ section[data-testid="stSidebar"] input {
     background-color: #ffffff !important;
 }
 
-/* Hide GitHub source button in header */
-header a[href*="github"],
-[data-testid="stHeader"] a[href*="github"],
-[data-testid="stToolbar"] a[href*="github"] {
+/* Hide GitHub source button */
+a[href*="github"],
+a[href*="github.com"],
+[data-testid="stToolbar"] a,
+[data-testid="stToolbar"] button:not([data-testid="collapsedControl"]) {
     display: none !important;
 }
 
