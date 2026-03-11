@@ -155,6 +155,12 @@ section[data-testid="stSidebar"] input {
     background-color: #ffffff !important;
 }
 
+/* Hide GitHub source button in header */
+header a[href*="github"],
+[data-testid="stHeader"] a[href*="github"],
+[data-testid="stToolbar"] a[href*="github"] {
+    display: none !important;
+}
 
 /* Buttons */
 .stButton button {
@@ -1649,30 +1655,17 @@ if analyze_btn and listing_input:
         with st.spinner("Fetching listing from URL..."):
             zillow_text, err = fetch_zillow_text(stripped)
         if err == "BLOCKED":
-            # Treat as address-only: show default dashboard
             st.info("Couldn't pull the listing page — fill in purchase price and rent in the sidebar, then click **Run Deal**.")
             default_data = {
                 "property": {
-                    "address": stripped,
-                    "property_type": None,
-                    "num_units": 1,
-                    "square_feet": None,
-                    "purchase_price": None,
-                    "down_payment_pct": 0.25,
-                    "gross_monthly_income": None,
-                    "vacancy_rate": 0.0,
-                    "monthly_operating_expenses": None,
-                    "operating_expenses_pct": 0.45,
-                    "appreciation_rate": 0.03,
-                    "rent_growth_rate": 0.02,
-                    "annual_cap_ex": None,
-                    "closing_costs": None,
+                    "address": stripped, "property_type": None, "num_units": 1,
+                    "square_feet": None, "purchase_price": None, "down_payment_pct": 0.25,
+                    "gross_monthly_income": None, "vacancy_rate": 0.0,
+                    "monthly_operating_expenses": None, "operating_expenses_pct": 0.45,
+                    "appreciation_rate": 0.03, "rent_growth_rate": 0.02,
+                    "annual_cap_ex": None, "closing_costs": None,
                 },
-                "financing": {
-                    "interest_rate": 0.07,
-                    "amortization_years": 30,
-                    "loan_amount": None,
-                },
+                "financing": {"interest_rate": 0.07, "amortization_years": 30, "loan_amount": None},
                 "missing_info": ["purchase_price", "gross_monthly_income"],
             }
             st.session_state["dashboard_data"] = default_data
@@ -1681,10 +1674,9 @@ if analyze_btn and listing_input:
         elif err:
             st.error(err)
         else:
-            text_to_analyze = zillow_text
             with st.spinner("Analyzing property data..."):
                 try:
-                    content = [{"type": "text", "text": text_to_analyze + "\n\nExtract all deal data from this listing and return the JSON as specified."}]
+                    content = [{"type": "text", "text": zillow_text + "\n\nExtract all deal data from this listing and return the JSON as specified."}]
                     full_text = ""
                     placeholder = st.empty()
                     with client.messages.stream(
