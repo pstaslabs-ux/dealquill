@@ -155,10 +155,8 @@ section[data-testid="stSidebar"] input {
     background-color: #ffffff !important;
 }
 
-/* Hide GitHub source button in header */
-header a[href*="github"],
-[data-testid="stHeader"] a[href*="github"],
-[data-testid="stToolbar"] a[href*="github"] {
+/* Hide toolbar buttons (share, star, GitHub) */
+[data-testid="stToolbar"] {
     display: none !important;
 }
 
