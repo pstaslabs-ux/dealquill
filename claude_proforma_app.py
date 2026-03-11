@@ -604,14 +604,15 @@ def show_dashboard(data):
     if st.button("＋ New Deal", type="secondary"):
         save_to_history(data)
         st.session_state.pop("dashboard_data", None)
-        st.session_state["_sb_pending"] = {k: v for k, v in {
+        st.session_state["_sb_pending"] = {
             "sb_address": "", "sb_type": "", "sb_sqft": 0, "sb_price": 0,
             "sb_down": 25.0, "sb_closing": 0, "sb_gmi": 0, "sb_vacancy": 0.0,
             "sb_taxes": 0, "sb_insure": 0, "sb_util": 0,
             "sb_capex": 5.0, "sb_maint": 5.0, "sb_mgmt": 8.0,
             "sb_rate": 7.0, "sb_amort": 30, "sb_appr": 3.0, "sb_rent_g": 2.0,
             "sb_hud_token": "", "sb_bedrooms": "2 BR", "sb_units": 1,
-        }.items()}
+            "zillow_input": "", "pasted_text": "",
+        }
         st.rerun()
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1638,7 +1639,7 @@ st.markdown("Paste a Zillow link, upload deal documents, or fill in the sidebar 
 # ── Zillow input ──────────────────────────────────────────────────────────────
 zillow_col, zillow_btn_col = st.columns([5, 1])
 with zillow_col:
-    zillow_input = st.text_input("Zillow URL or Address", placeholder="https://www.zillow.com/homedetails/... or 123 Main St, City, ST")
+    zillow_input = st.text_input("Zillow URL or Address", placeholder="https://www.zillow.com/homedetails/... or 123 Main St, City, ST", key="zillow_input")
 with zillow_btn_col:
     st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     zillow_btn = st.button("Fetch from Zillow", type="primary", disabled=not zillow_input)
@@ -1711,6 +1712,7 @@ pasted_text = st.text_area(
     "Or paste listing text directly",
     height=160,
     placeholder="Copy all text from any listing page (Ctrl+A → Ctrl+C) and paste here — Zillow, LoopNet, CoStar, MLS, etc.",
+    key="pasted_text",
 )
 paste_btn = st.button("Analyze Pasted Text", type="primary", disabled=not pasted_text)
 if paste_btn and pasted_text:
