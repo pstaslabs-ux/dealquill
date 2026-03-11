@@ -609,7 +609,7 @@ def show_dashboard(data):
             "sb_capex": 5.0, "sb_maint": 5.0, "sb_mgmt": 8.0,
             "sb_rate": 7.0, "sb_amort": 30, "sb_appr": 3.0, "sb_rent_g": 2.0,
             "sb_hud_token": "", "sb_bedrooms": "2 BR", "sb_units": 1,
-            "zillow_input": "", "pasted_text": "",
+            "listing_input": "",
         }
         st.rerun()
 
@@ -1632,62 +1632,92 @@ with st.sidebar:
 # ── Main UI ───────────────────────────────────────────────────────────────────
 
 st.title("Deal Analyzer")
-st.markdown("Paste a Zillow link, upload deal documents, or fill in the sidebar manually.")
+st.markdown("Paste a Zillow link, address, or listing text — or upload documents below.")
 
-# ── Zillow input ──────────────────────────────────────────────────────────────
-zillow_col, zillow_btn_col = st.columns([5, 1])
-with zillow_col:
-    zillow_input = st.text_input("Zillow URL or Address", placeholder="https://www.zillow.com/homedetails/... or 123 Main St, City, ST", key="zillow_input")
-with zillow_btn_col:
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    zillow_btn = st.button("Fetch from Zillow", type="primary", disabled=not zillow_input)
+# ── Unified input ──────────────────────────────────────────────────────────────
+listing_input = st.text_area(
+    "Zillow link, address, or listing text",
+    height=160,
+    placeholder="Paste a Zillow link, type an address (e.g. 123 Main St, Austin TX), or paste the full listing text from Zillow, LoopNet, CoStar, MLS, etc.",
+    key="listing_input",
+)
+analyze_btn = st.button("Analyze Deal", type="primary", disabled=not listing_input)
 
-if zillow_btn and zillow_input:
+if analyze_btn and listing_input:
     st.session_state.pop("dashboard_data", None)
     client = anthropic.Anthropic(api_key=API_KEY)
-    with st.spinner("Fetching Zillow listing..."):
-        zillow_text, err = fetch_zillow_text(zillow_input)
-    if err == "BLOCKED":
-        st.info("Couldn't pull Zillow listing — address saved. Fill in purchase price and rent in the sidebar, then click **Run Deal**.")
-        default_data = {
-            "property": {
-                "address": zillow_input,
-                "property_type": None,
-                "num_units": 1,
-                "square_feet": None,
-                "purchase_price": None,
-                "down_payment_pct": 0.25,
-                "gross_monthly_income": None,
-                "vacancy_rate": 0.0,
-                "monthly_operating_expenses": None,
-                "operating_expenses_pct": 0.45,
-                "appreciation_rate": 0.03,
-                "rent_growth_rate": 0.02,
-                "annual_cap_ex": None,
-                "closing_costs": None,
-            },
-            "financing": {
-                "interest_rate": 0.07,
-                "amortization_years": 30,
-                "loan_amount": None,
-            },
-            "missing_info": ["purchase_price", "gross_monthly_income"],
-        }
-        st.session_state["dashboard_data"] = default_data
-        st.session_state.setdefault("_sb_pending", {})["sb_address"] = zillow_input
-        st.rerun()
-    elif err:
-        st.error(err)
+    stripped = listing_input.strip()
+    is_url = stripped.lower().startswith("http")
+
+    if is_url:
+        with st.spinner("Fetching listing from URL..."):
+            zillow_text, err = fetch_zillow_text(stripped)
+        if err == "BLOCKED":
+            # Treat as address-only: show default dashboard
+            st.info("Couldn't pull the listing page — fill in purchase price and rent in the sidebar, then click **Run Deal**.")
+            default_data = {
+                "property": {
+                    "address": stripped,
+                    "property_type": None,
+                    "num_units": 1,
+                    "square_feet": None,
+                    "purchase_price": None,
+                    "down_payment_pct": 0.25,
+                    "gross_monthly_income": None,
+                    "vacancy_rate": 0.0,
+                    "monthly_operating_expenses": None,
+                    "operating_expenses_pct": 0.45,
+                    "appreciation_rate": 0.03,
+                    "rent_growth_rate": 0.02,
+                    "annual_cap_ex": None,
+                    "closing_costs": None,
+                },
+                "financing": {
+                    "interest_rate": 0.07,
+                    "amortization_years": 30,
+                    "loan_amount": None,
+                },
+                "missing_info": ["purchase_price", "gross_monthly_income"],
+            }
+            st.session_state["dashboard_data"] = default_data
+            st.session_state.setdefault("_sb_pending", {})["sb_address"] = stripped
+            st.rerun()
+        elif err:
+            st.error(err)
+        else:
+            text_to_analyze = zillow_text
+            with st.spinner("Analyzing property data..."):
+                try:
+                    content = [{"type": "text", "text": text_to_analyze + "\n\nExtract all deal data from this listing and return the JSON as specified."}]
+                    full_text = ""
+                    placeholder = st.empty()
+                    with client.messages.stream(
+                        model=MODEL, max_tokens=4096, system=SYSTEM_PROMPT,
+                        messages=[{"role": "user", "content": content}],
+                    ) as stream:
+                        for chunk in stream.text_stream:
+                            full_text += chunk
+                            placeholder.code(full_text[:800] + ("..." if len(full_text) > 800 else ""), language="json")
+                    placeholder.empty()
+                    data = extract_json(full_text)
+                    if data:
+                        st.session_state["dashboard_data"] = data
+                        save_to_history(data)
+                        populate_sidebar_from_data(data)
+                        st.rerun()
+                    else:
+                        st.error("Could not extract deal data from this listing.")
+                except Exception as e:
+                    st.error("API error: " + str(e))
     else:
-        with st.spinner("Analyzing property data..."):
+        # Address or pasted listing text — send directly to Claude
+        with st.spinner("Analyzing..."):
             try:
-                content = [{"type": "text", "text": zillow_text + "\n\nExtract all deal data from this Zillow listing and return the JSON as specified."}]
+                content = [{"type": "text", "text": stripped + "\n\nExtract all deal data from this and return the JSON as specified."}]
                 full_text = ""
                 placeholder = st.empty()
                 with client.messages.stream(
-                    model=MODEL,
-                    max_tokens=4096,
-                    system=SYSTEM_PROMPT,
+                    model=MODEL, max_tokens=4096, system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": content}],
                 ) as stream:
                     for chunk in stream.text_stream:
@@ -1701,43 +1731,9 @@ if zillow_btn and zillow_input:
                     populate_sidebar_from_data(data)
                     st.rerun()
                 else:
-                    st.error("Could not extract deal data from this Zillow listing.")
+                    st.error("Could not extract deal data.")
             except Exception as e:
                 st.error("API error: " + str(e))
-
-# ── Paste listing text ────────────────────────────────────────────────────────
-pasted_text = st.text_area(
-    "Or paste listing text directly",
-    height=160,
-    placeholder="Copy all text from any listing page (Ctrl+A → Ctrl+C) and paste here — Zillow, LoopNet, CoStar, MLS, etc.",
-    key="pasted_text",
-)
-paste_btn = st.button("Analyze Pasted Text", type="primary", disabled=not pasted_text)
-if paste_btn and pasted_text:
-    client = anthropic.Anthropic(api_key=API_KEY)
-    with st.spinner("Analyzing..."):
-        try:
-            content = [{"type": "text", "text": pasted_text + "\n\nExtract all deal data from this listing and return the JSON as specified."}]
-            full_text = ""
-            placeholder = st.empty()
-            with client.messages.stream(
-                model=MODEL, max_tokens=4096, system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": content}],
-            ) as stream:
-                for chunk in stream.text_stream:
-                    full_text += chunk
-                    placeholder.code(full_text[:800] + ("..." if len(full_text) > 800 else ""), language="json")
-            placeholder.empty()
-            data = extract_json(full_text)
-            if data:
-                st.session_state["dashboard_data"] = data
-                save_to_history(data)
-                populate_sidebar_from_data(data)
-                st.rerun()
-            else:
-                st.error("Could not extract deal data from the pasted text.")
-        except Exception as e:
-            st.error("API error: " + str(e))
 
 st.divider()
 
