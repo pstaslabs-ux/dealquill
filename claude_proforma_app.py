@@ -600,6 +600,20 @@ def show_dashboard(data):
 
     arr_5yr = arr_list[4]
 
+    # ── New Deal button ────────────────────────────────────────────────────────
+    if st.button("＋ New Deal", type="secondary"):
+        save_to_history(data)
+        st.session_state.pop("dashboard_data", None)
+        st.session_state["_sb_pending"] = {k: v for k, v in {
+            "sb_address": "", "sb_type": "", "sb_sqft": 0, "sb_price": 0,
+            "sb_down": 25.0, "sb_closing": 0, "sb_gmi": 0, "sb_vacancy": 0.0,
+            "sb_taxes": 0, "sb_insure": 0, "sb_util": 0,
+            "sb_capex": 5.0, "sb_maint": 5.0, "sb_mgmt": 8.0,
+            "sb_rate": 7.0, "sb_amort": 30, "sb_appr": 3.0, "sb_rent_g": 2.0,
+            "sb_hud_token": "", "sb_bedrooms": "2 BR", "sb_units": 1,
+        }.items()}
+        st.rerun()
+
     # ═══════════════════════════════════════════════════════════════════════════
     # 1. HERO CARD
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1635,8 +1649,33 @@ if zillow_btn and zillow_input:
     with st.spinner("Fetching Zillow listing..."):
         zillow_text, err = fetch_zillow_text(zillow_input)
     if err == "BLOCKED":
-        st.warning("Couldn't pull listing data from Zillow — address saved to sidebar. Enter a purchase price to get rent and expense estimates, or paste the listing text below.")
-        st.session_state["sb_address"] = zillow_input
+        st.info("Couldn't pull Zillow listing — address saved. Fill in purchase price and rent in the sidebar, then click **Run Deal**.")
+        default_data = {
+            "property": {
+                "address": zillow_input,
+                "property_type": None,
+                "num_units": 1,
+                "square_feet": None,
+                "purchase_price": None,
+                "down_payment_pct": 0.25,
+                "gross_monthly_income": None,
+                "vacancy_rate": 0.0,
+                "monthly_operating_expenses": None,
+                "operating_expenses_pct": 0.45,
+                "appreciation_rate": 0.03,
+                "rent_growth_rate": 0.02,
+                "annual_cap_ex": None,
+                "closing_costs": None,
+            },
+            "financing": {
+                "interest_rate": 0.07,
+                "amortization_years": 30,
+                "loan_amount": None,
+            },
+            "missing_info": ["purchase_price", "gross_monthly_income"],
+        }
+        st.session_state["dashboard_data"] = default_data
+        st.session_state.setdefault("_sb_pending", {})["sb_address"] = zillow_input
         st.rerun()
     elif err:
         st.error(err)
