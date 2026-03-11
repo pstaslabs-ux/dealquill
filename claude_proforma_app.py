@@ -71,7 +71,7 @@ def save_to_history(data):
 
 # ── Page setup ────────────────────────────────────────────────────────────────
 
-st.set_page_config(page_title="DealQuill", layout="wide", page_icon="🏢")
+st.set_page_config(page_title="DealQuill", layout="wide", page_icon="🏢", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
