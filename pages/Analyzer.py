@@ -698,7 +698,51 @@ def show_dashboard(data):
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # 4. INCOME & EXPENSE BREAKDOWN
+    # 4. INVESTOR QUICK METRICS
+    # ═══════════════════════════════════════════════════════════════════════════
+    num_units   = _get(prop, "num_units", 1) or 1
+    annual_rent = gmi * 12
+    grm         = round(purchase_price / annual_rent, 2) if annual_rent else None
+    ppu         = round(purchase_price / num_units)      if num_units  else None
+    annual_ds   = monthly_payment * 12
+    dscr        = round(annual_noi / annual_ds, 2)       if annual_ds  else None
+
+    st.markdown('<div style="background:white;border:1px solid #E2E8F0;border-radius:10px;padding:20px;margin-bottom:16px;">', unsafe_allow_html=True)
+    st.markdown('<div style="font-weight:700;font-size:16px;margin-bottom:14px;color:#000;">Investor Quick Metrics</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead>
+        <tr style="border-bottom:2px solid #E2E8F0;">
+          <th style="text-align:left;padding:8px 12px;color:#555;font-weight:600;">Metric</th>
+          <th style="text-align:left;padding:8px 12px;color:#555;font-weight:600;">Formula</th>
+          <th style="text-align:right;padding:8px 12px;color:#555;font-weight:600;">Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #F0F0F0;">
+          <td style="padding:10px 12px;font-weight:600;color:#000;">GRM</td>
+          <td style="padding:10px 12px;color:#555;">Price / Annual Rent</td>
+          <td style="padding:10px 12px;text-align:right;font-weight:700;color:#000;">""" + (str(grm) if grm is not None else "—") + """</td>
+        </tr>
+        <tr style="border-bottom:1px solid #F0F0F0;">
+          <td style="padding:10px 12px;font-weight:600;color:#000;">Price Per Unit</td>
+          <td style="padding:10px 12px;color:#555;">Price / Units</td>
+          <td style="padding:10px 12px;text-align:right;font-weight:700;color:#000;">""" + (fmt_d(ppu) if ppu is not None else "—") + """</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 12px;font-weight:600;color:#000;">DSCR</td>
+          <td style="padding:10px 12px;color:#555;">NOI / Debt Service</td>
+          <td style="padding:10px 12px;text-align:right;font-weight:700;color:""" + ("#38A169" if dscr and dscr >= 1.25 else "#E53E3E" if dscr and dscr < 1.0 else "#ED8936" if dscr else "#000") + """;">""" + (str(dscr) if dscr is not None else "—") + """</td>
+        </tr>
+      </tbody>
+    </table>
+    """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 5. INCOME & EXPENSE BREAKDOWN
     # ═══════════════════════════════════════════════════════════════════════════
     st.markdown('<div style="background:white;border:1px solid #E2E8F0;border-radius:10px;padding:20px;margin-bottom:16px;">', unsafe_allow_html=True)
     st.markdown('<div style="font-weight:700;font-size:15px;color:#000;margin-bottom:14px;">Income & Expense Breakdown</div>', unsafe_allow_html=True)
