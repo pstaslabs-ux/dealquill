@@ -959,6 +959,258 @@ def show_dashboard(data):
     st.markdown(table_html, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # FULL UNDERWRITING MODEL
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#2F5496;border-radius:10px;padding:14px 22px;margin-bottom:16px;">'
+        '<div style="font-weight:800;font-size:17px;color:white;letter-spacing:0.5px;">FULL UNDERWRITING MODEL</div>'
+        '<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:3px;">'
+        'Added underwriting module only — existing pro forma left unchanged.</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── helpers ──────────────────────────────────────────────────────────────
+    def _uw_row(label, val, fmt="currency", bold=False, color="#000"):
+        if val is None:
+            v = "—"
+        elif fmt == "currency":
+            v = fmt_d(val)
+        elif fmt == "pct":
+            v = fmt_p(val)
+        elif fmt == "2f":
+            v = f"{val:.2f}"
+        elif fmt == "2fx":
+            v = f"{val:.2f}x"
+        else:
+            v = str(val)
+        w = "700" if bold else "400"
+        return (
+            f'<tr><td style="padding:8px 12px;font-size:13px;font-weight:{w};color:{color};">{label}</td>'
+            f'<td style="padding:8px 12px;font-size:13px;font-weight:{w};color:{color};text-align:right;">{v}</td></tr>'
+        )
+
+    def _uw_divider():
+        return '<tr><td colspan="2" style="padding:0;border-top:1px solid #E2E8F0;"></td></tr>'
+
+    def _uw_card(title, inner_html):
+        return (
+            '<div style="background:white;border:1px solid #E2E8F0;border-radius:10px;padding:20px;margin-bottom:16px;">'
+            f'<div style="font-weight:700;font-size:15px;color:#2F5496;margin-bottom:12px;">{title}</div>'
+            f'{inner_html}</div>'
+        )
+
+    def _uw_table(rows_html):
+        return (
+            '<table style="width:100%;border-collapse:collapse;">'
+            f'<colgroup><col style="width:60%"><col style="width:40%"></colgroup>'
+            f'{rows_html}</table>'
+        )
+
+    def _uw_assump_box(items):
+        """items = list of (label, value_str)"""
+        inner = "".join(
+            f'<div style="display:flex;justify-content:space-between;font-size:12px;'
+            f'padding:4px 0;border-bottom:1px solid #EDF2F7;">'
+            f'<span style="color:#555;">{k}</span>'
+            f'<span style="font-weight:600;color:#000;">{v}</span></div>'
+            for k, v in items
+        )
+        return (
+            '<div style="background:#F7FAFC;border:1px solid #E2E8F0;border-radius:6px;'
+            'padding:10px 14px;margin-bottom:12px;font-size:12px;">'
+            '<div style="font-weight:700;font-size:11px;color:#888;text-transform:uppercase;'
+            'letter-spacing:0.5px;margin-bottom:6px;">Assumptions</div>'
+            f'{inner}</div>'
+        )
+
+    # ── pre-compute shared values ─────────────────────────────────────────────
+    _num_units  = _get(prop, "num_units", 1) or 1
+    _ann_rent   = gmi * 12
+    _ann_op_exp = _ann_rent - annual_noi           # annual operating expenses
+    _dscr       = annual_noi / annual_ds if annual_ds else None
+
+    # Refinance defaults
+    _refi_cap   = 0.08
+    _refi_ltv   = 0.75
+    _refi_yr    = 2
+    _refi_noi   = annual_noi * (1 + rent_growth) ** (_refi_yr - 1)
+    _refi_val   = _refi_noi / _refi_cap if _refi_cap else None
+    _refi_loan  = _refi_val * _refi_ltv if _refi_val else None
+    _refi_lb    = lb_list[_refi_yr - 1] if len(lb_list) >= _refi_yr else None
+    _cashout    = (_refi_loan - _refi_lb) if (_refi_loan and _refi_lb) else None
+
+    # Sale / Reversion defaults
+    _hold       = 5
+    _exit_cap   = 0.085
+    _sell_cost  = 0.03
+    _sale_noi   = annual_noi * (1 + rent_growth) ** (_hold - 1)
+    _gross_sale = _sale_noi / _exit_cap if _exit_cap else None
+    _sell_costs_d = _gross_sale * _sell_cost if _gross_sale else None
+    _net_sale_p = _gross_sale - _sell_costs_d if _gross_sale else None
+    _lb_sale    = lb_list[_hold - 1] if len(lb_list) >= _hold else None
+    _net_proceeds = (_net_sale_p - _lb_sale) if (_net_sale_p and _lb_sale) else None
+    _total_cf5  = sum(annual_cfs[:_hold]) if len(annual_cfs) >= _hold else None
+    _total_profit = (_total_cf5 + _net_proceeds - total_invested) if (_total_cf5 and _net_proceeds) else None
+
+    # Equity multiple & 5-yr IRR
+    _eq_mult    = ((_total_cf5 + _net_proceeds) / total_invested) if (total_invested and _total_cf5 and _net_proceeds) else None
+    _irr_5yr    = arr_list[4] if len(arr_list) >= 5 else None
+
+    # Break-even
+    _be_rev     = _ann_op_exp + annual_ds
+    _be_occ     = _be_rev / _ann_rent if _ann_rent else None
+
+    # ── SECTION 1: ACQUISITION SUMMARY ────────────────────────────────────────
+    _s1 = _uw_table(
+        _uw_row("Purchase Price",      purchase_price) +
+        _uw_row("Loan Amount",         loan_amount) +
+        _uw_row("Equity Invested",     total_invested, bold=True) +
+        _uw_divider() +
+        _uw_row("Interest Rate",       interest_rate, fmt="pct") +
+        _uw_row("Amortization Term",   f"{int(amort_years)} years", fmt="str") +
+        _uw_divider() +
+        _uw_row("Gross Monthly Rent",  gmi) +
+        _uw_row("Annual Gross Rent",   _ann_rent) +
+        _uw_row("Annual NOI",          annual_noi) +
+        _uw_row("Annual Debt Service", annual_ds) +
+        _uw_row("Cap Rate",            cap_rate, fmt="pct", bold=True)
+    )
+    st.markdown(_uw_card("1. Acquisition Summary", _s1), unsafe_allow_html=True)
+
+    # ── SECTION 2: INVESTOR RETURN METRICS ────────────────────────────────────
+    _s2_assump = _uw_assump_box([
+        ("Annual Rent Growth",    fmt_p(rent_growth)),
+        ("Annual Expense Growth", "2.50%"),
+        ("Hold Period",           f"{_hold} years"),
+    ])
+    _dscr_color = "#38A169" if (_dscr and _dscr >= 1.25) else "#E53E3E" if (_dscr and _dscr < 1.0) else "#ED8936"
+    _s2 = _s2_assump + _uw_table(
+        _uw_row("Monthly Cash Flow",     monthly_cf,  bold=True, color="#38A169" if monthly_cf >= 0 else "#E53E3E") +
+        _uw_row("Annual Cash Flow",      annual_cf) +
+        _uw_row("Cash-on-Cash Return",   coc_roi,     fmt="pct") +
+        _uw_row("DSCR",                  _dscr,       fmt="2f",  color=_dscr_color) +
+        _uw_divider() +
+        _uw_row("Equity Multiple (5-yr)",_eq_mult,    fmt="2fx", bold=True) +
+        _uw_row("IRR (5-Year Hold)",     _irr_5yr,    fmt="pct", bold=True)
+    )
+    st.markdown(_uw_card("2. Investor Return Metrics", _s2), unsafe_allow_html=True)
+
+    # ── SECTION 3: BREAK-EVEN ANALYSIS ────────────────────────────────────────
+    _s3 = _uw_table(
+        _uw_row("Annual Gross Rent",         _ann_rent) +
+        _uw_row("Annual Operating Expenses", _ann_op_exp) +
+        _uw_row("Annual Debt Service",       annual_ds) +
+        _uw_divider() +
+        _uw_row("Break-Even Revenue",        _be_rev, bold=True) +
+        _uw_row("Break-Even Occupancy",      _be_occ, fmt="pct", bold=True)
+    )
+    st.markdown(_uw_card("3. Break-Even Analysis", _s3), unsafe_allow_html=True)
+
+    # ── SECTION 4: REFINANCE ANALYSIS ─────────────────────────────────────────
+    _s4_assump = _uw_assump_box([
+        ("Stabilized Cap Rate", fmt_p(_refi_cap)),
+        ("Refinance LTV",       fmt_p(_refi_ltv)),
+        ("Refinance Year",      f"Year {_refi_yr}"),
+    ])
+    _s4 = _s4_assump + _uw_table(
+        _uw_row(f"Stabilized NOI (Year {_refi_yr})", _refi_noi) +
+        _uw_row("Stabilized Value",                  _refi_val) +
+        _uw_row("New Loan Amount",                   _refi_loan) +
+        _uw_row("Loan Balance at Refi",              _refi_lb) +
+        _uw_row("Cash-Out Proceeds",                 _cashout, bold=True)
+    )
+    st.markdown(_uw_card("4. Refinance Analysis", _s4), unsafe_allow_html=True)
+
+    # ── SECTION 5: SALE / REVERSION ANALYSIS ──────────────────────────────────
+    _s5_assump = _uw_assump_box([
+        ("Hold Period",    f"{_hold} years"),
+        ("Exit Cap Rate",  fmt_p(_exit_cap)),
+        ("Selling Costs",  fmt_p(_sell_cost)),
+    ])
+    _s5 = _s5_assump + _uw_table(
+        _uw_row(f"Year-{_hold} NOI",        _sale_noi) +
+        _uw_row("Gross Sale Price",          _gross_sale) +
+        _uw_row("Selling Costs",             _sell_costs_d) +
+        _uw_row("Net Sale Price",            _net_sale_p) +
+        _uw_row("Loan Balance at Sale",      _lb_sale) +
+        _uw_row("Net Sale Proceeds",         _net_proceeds, bold=True) +
+        _uw_divider() +
+        _uw_row(f"Total Cash Flows ({_hold} yr)", _total_cf5) +
+        _uw_row("Initial Equity Invested",   total_invested) +
+        _uw_row("Total Profit",              _total_profit, bold=True, color="#38A169" if (_total_profit and _total_profit > 0) else "#E53E3E")
+    )
+    st.markdown(_uw_card("5. Sale / Reversion Analysis", _s5), unsafe_allow_html=True)
+
+    # ── SECTION 6: SENSITIVITY TABLES ─────────────────────────────────────────
+    st.markdown(
+        '<div style="background:white;border:1px solid #E2E8F0;border-radius:10px;padding:20px;margin-bottom:16px;">',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div style="font-weight:700;font-size:15px;color:#2F5496;margin-bottom:14px;">6. Sensitivity Tables</div>', unsafe_allow_html=True)
+
+    # Table A — Rent vs Monthly Cash Flow
+    _opex_pct = monthly_opex / gmi if gmi > 0 else 0
+    _rent_rows = []
+    for _pct in [-0.10, -0.05, 0.0, 0.05, 0.10]:
+        _r   = gmi * (1 + _pct)
+        _eff = _r * (1 - vacancy_rate)
+        _opx = _r * _opex_pct
+        _cf  = _eff - _opx - monthly_payment
+        _tag = " ← current" if _pct == 0.0 else ""
+        _rent_rows.append((_r, _cf, _tag))
+
+    _tA_header = (
+        '<tr style="background:#F3F4F6;">'
+        '<th style="padding:8px 12px;text-align:left;font-size:12px;font-weight:600;color:#555;border-bottom:2px solid #E2E8F0;">Gross Monthly Rent</th>'
+        '<th style="padding:8px 12px;text-align:right;font-size:12px;font-weight:600;color:#555;border-bottom:2px solid #E2E8F0;">Monthly Cash Flow</th>'
+        '</tr>'
+    )
+    _tA_rows = ""
+    for i, (_r, _cf, _tag) in enumerate(_rent_rows):
+        _bg  = "#EBF8FF" if _tag else ("#ffffff" if i % 2 == 0 else "#F9FAFB")
+        _fc  = "#38A169" if _cf >= 0 else "#E53E3E"
+        _tA_rows += (
+            f'<tr style="background:{_bg};">'
+            f'<td style="padding:8px 12px;font-size:13px;color:#000;">{fmt_d(_r)}{_tag}</td>'
+            f'<td style="padding:8px 12px;font-size:13px;font-weight:600;color:{_fc};text-align:right;">{fmt_d(_cf)}</td>'
+            f'</tr>'
+        )
+    st.markdown('<div style="font-weight:600;font-size:13px;color:#000;margin-bottom:8px;">Table A — Rent Sensitivity vs Monthly Cash Flow</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="overflow-x:auto;margin-bottom:20px;"><table style="width:100%;border-collapse:collapse;">{_tA_header}<tbody>{_tA_rows}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
+
+    # Table B — Exit Cap Rate vs Sale Price
+    _tB_header = (
+        '<tr style="background:#F3F4F6;">'
+        '<th style="padding:8px 12px;text-align:left;font-size:12px;font-weight:600;color:#555;border-bottom:2px solid #E2E8F0;">Exit Cap Rate</th>'
+        '<th style="padding:8px 12px;text-align:right;font-size:12px;font-weight:600;color:#555;border-bottom:2px solid #E2E8F0;">Gross Sale Price</th>'
+        '<th style="padding:8px 12px;text-align:right;font-size:12px;font-weight:600;color:#555;border-bottom:2px solid #E2E8F0;">Net Sale Proceeds</th>'
+        '</tr>'
+    )
+    _tB_rows = ""
+    for i, _ec in enumerate([0.075, 0.08, 0.085, 0.09, 0.095]):
+        _gs  = _sale_noi / _ec if (_sale_noi and _ec) else None
+        _np  = (_gs * (1 - _sell_cost) - _lb_sale) if (_gs and _lb_sale) else None
+        _tag = " ←" if _ec == _exit_cap else ""
+        _bg  = "#EBF8FF" if _tag else ("#ffffff" if i % 2 == 0 else "#F9FAFB")
+        _tB_rows += (
+            f'<tr style="background:{_bg};">'
+            f'<td style="padding:8px 12px;font-size:13px;color:#000;">{fmt_p(_ec)}{_tag}</td>'
+            f'<td style="padding:8px 12px;font-size:13px;color:#000;text-align:right;">{fmt_d(_gs) if _gs else "—"}</td>'
+            f'<td style="padding:8px 12px;font-size:13px;font-weight:600;color:#000;text-align:right;">{fmt_d(_np) if _np else "—"}</td>'
+            f'</tr>'
+        )
+    st.markdown('<div style="font-weight:600;font-size:13px;color:#000;margin-bottom:8px;">Table B — Exit Cap Rate vs Sale Price &amp; Net Proceeds</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">{_tB_header}<tbody>{_tB_rows}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
     # ── Missing info ──────────────────────────────────────────────────────────
     if missing:
         items = "<br>".join("• " + m for m in missing)
